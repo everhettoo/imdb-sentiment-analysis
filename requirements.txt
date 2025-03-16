@@ -2,3 +2,6 @@ nltk
 pandas
 spacy
 matplotlib
+wordcloud
+seaborn
+scikit-learn
