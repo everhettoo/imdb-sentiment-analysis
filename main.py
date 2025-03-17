@@ -1,12 +1,14 @@
-from enum import Enum
+import os
+import pickle
 import re
+from contextlib import asynccontextmanager
+from enum import Enum
+
+import spacy
 import uvicorn
 from fastapi import FastAPI, status, HTTPException
-import pickle
-import spacy
-from sklearn.feature_extraction.text import TfidfVectorizer
-
 from pydantic import BaseModel
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 class ModelType(Enum):
@@ -20,10 +22,77 @@ class SentimentRequest(BaseModel):
     model: ModelType
 
 
-app = FastAPI()
+# Save the transformed TF-IDF vectorized data into pickle format for loading into REST API.
+pickle_vectorizer_model_path = 'models/vectorized-model.pkl'
+
+# Save the trained NB model into pickle format for loading into REST API.
+pickle_nb_ml_model_path = 'models/nb-ml-model.pkl'
+
+# Save the trained LR model into pickle format for loading into REST API.
+pickle_lr_ml_model_path = 'models/lr-ml-model.pkl'
+
+# Save the trained RF model into pickle format for loading into REST API.
+pickle_rf_ml_model_path = 'models/rf-ml-model.pkl'
+
+# Vectorized model for transforming input text to ML model required TF-IDF format.
+vectorized_model: TfidfVectorizer
+
+# The trained NB ML model.
+nb_ml_model = None
+
+# The trained LR ML model.
+lr_ml_model = None
+
+# The trained RF ML model.
+rf_ml_model = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global vectorized_model
+    global nb_ml_model
+
+    print(f'[Service] - initializing ...')
+
+    # Load the saved vectorized model.
+    if os.path.exists(pickle_vectorizer_model_path):
+        vectorized_model = pickle.load(open(pickle_vectorizer_model_path, 'rb'))
+    else:
+        print(f'[Service] - {pickle_vectorizer_model_path} not found!')
+
+    # Load the saved NB model.
+    if os.path.exists(pickle_nb_ml_model_path):
+        nb_ml_model = pickle.load(open(pickle_nb_ml_model_path, 'rb'))
+    else:
+        print(f'[Service] - {pickle_nb_ml_model_path} not found!')
+
+    # Load the saved LR model.
+    if os.path.exists(pickle_lr_ml_model_path):
+        lr_ml_model = pickle.load(open(pickle_lr_ml_model_path, 'rb'))
+    else:
+        print(f'[Service] - {pickle_lr_ml_model_path} not found!')
+
+    # Load the saved RF model.
+    if os.path.exists(pickle_rf_ml_model_path):
+        rf_ml_model = pickle.load(open(pickle_rf_ml_model_path, 'rb'))
+    else:
+        print(f'[Service] - {pickle_rf_ml_model_path} not found!')
+
+    yield
+    vectorized_model = None
+    nb_ml_model = None
+    print(f'[Service] - shutting down ...')
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 def preprocess_text(text):
+    """
+    The same method used in the notebook for preprocessing the raw text into TF-IDF vectorized format.
+    :param text: Takes in a raw text.
+    :return: TF-IDF vectorized data.
+    """
     # Load spaCy English model
     nlp = spacy.load("en_core_web_sm")
 
@@ -88,55 +157,39 @@ def preprocess_text(text):
     lemmatized_words = [token.lemma_ for token in doc]
     filtered_words = [word for word in lemmatized_words if word not in stop_words and word.isalpha()]
 
-    # If not None, build a vocabulary that only consider the top max_features ordered by term frequency across the corpus. Otherwise, all features are used.
-    # Limits the max words used for building the model.
-    max_features = 20000
-
-    # TODO: Afif, please confirm and justify!
-    # Initialize TF-IDF Vectorizer
-    # vectoriser = TfidfVectorizer(ngram_range=(1, 2), max_features=max_features)
-    vectoriser = TfidfVectorizer(ngram_range=(1, 2))
-
-    # Fit TF-IDF on cleaned training data
-    vectoriser.fit(filtered_words)
-
-    transformed_data = vectoriser.transform([" ".join(filtered_words)])
-
-    return transformed_data
+    return " ".join(filtered_words)
 
 
-def nb_predict(text: str):
-    model = pickle.load(open("models/nb-model.pkl", "rb"))
+def predict(text: str, model):
+    print(f'[Service] - preprocessing ...')
+    processed_text = preprocess_text(text)
 
-    # array.reshape(1, -1)
-    result = 0
-    try:
-        processed_text = preprocess_text(text)
-        result = model.predict(processed_text)
-    except Exception as exc:
-        print(exc)
+    print(f'[Service] - transforming data to TD-IDF ...')
+    transformed_data = vectorized_model.transform([processed_text])
 
-    return result
+    result = model.predict(transformed_data)
+    if result == 1:
+        return "positive"
+    else:
+        return "negative"
 
 
 @app.post("/predict")
 def predict(request: SentimentRequest):
-    # loaded_nb = pickle.load(open("models/nb-model.pkl", "rb"))
-    # result = loaded_nb.score(X_test, y_test)
-    # return data
-    text = request.text
-    model = request.model
+    try:
+        text = request.text
+        model = request.model
 
-    if model == ModelType.naive_bayes:
-        return nb_predict(text)
-    elif model == ModelType.logistic_regression:
-        pass
-    elif model == ModelType.random_forest:
-        pass
-    else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported model')
-
-    return {text: model}
+        if model == ModelType.naive_bayes:
+            return predict(text, nb_ml_model)
+        elif model == ModelType.logistic_regression:
+            return predict(text, lr_ml_model)
+        elif model == ModelType.random_forest:
+            return predict(text, rf_ml_model)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported model')
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'error: {e}')
 
 
 if __name__ == "__main__":
