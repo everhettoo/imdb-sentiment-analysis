@@ -18,6 +18,7 @@ The following supervised ML models are built.
 2. Open the project using preferred IDE (PyCharm or VSCode)
 3. Create a virtual environment (if needed): `python -m venv venv `
 4. Install required packages: `pip install -r requirements.txt`
+5. If need to run main.py before running any notebooks: `python -m spacy download en_core_web_sm`
 
 ## Project structure (explained)
 
@@ -29,6 +30,6 @@ The following supervised ML models are built.
    `data/2-imdb-movie-review-processed.csv`
 4. `2.3-model-random-forest.ipynb` - Random Forest model built using preprocessed dataset
    `data/2-imdb-movie-review-processed.csv`
-5. `main.py` - Loads the trained model (in pickle format) and host a REST endpoint at: http://localhost:8000/docs`
+5. `main.py` - Loads the trained model (in pickle format) and host a REST endpoint at: http://localhost:8000/docs
 6. `data` - folder where the original and processed data are stored
 7. `models` - folder where all the trained models are stored
