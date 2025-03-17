@@ -160,7 +160,7 @@ def preprocess_text(text):
     return " ".join(filtered_words)
 
 
-def predict(text: str, model):
+def predict_sentiment(text: str, model):
     print(f'[Service] - preprocessing ...')
     processed_text = preprocess_text(text)
 
@@ -181,11 +181,11 @@ def predict(request: SentimentRequest):
         model = request.model
 
         if model == ModelType.naive_bayes:
-            return predict(text, nb_ml_model)
+            return predict_sentiment(text, nb_ml_model)
         elif model == ModelType.logistic_regression:
-            return predict(text, lr_ml_model)
+            return predict_sentiment(text, lr_ml_model)
         elif model == ModelType.random_forest:
-            return predict(text, rf_ml_model)
+            return predict_sentiment(text, rf_ml_model)
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Unsupported model')
     except Exception as e:
