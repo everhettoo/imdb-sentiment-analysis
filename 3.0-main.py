@@ -51,6 +51,8 @@ rf_ml_model = None
 async def lifespan(app: FastAPI):
     global vectorized_model
     global nb_ml_model
+    global lr_ml_model
+    global rf_ml_model
 
     print(f'[Service] - initializing ...')
 
@@ -168,7 +170,7 @@ def predict_sentiment(text: str, model):
     transformed_data = vectorized_model.transform([processed_text])
 
     result = model.predict(transformed_data)
-    if result == 1:
+    if result == 1: 
         return "positive"
     else:
         return "negative"
