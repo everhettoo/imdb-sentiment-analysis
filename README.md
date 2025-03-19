@@ -17,8 +17,9 @@ The following supervised ML models are built.
 1. Clone the project to local: git clone: `git@github.com:everhettoo/imdb-sentiment-analysis.git`
 2. Open the project using preferred IDE (PyCharm or VSCode)
 3. Create a virtual environment (if needed): `python -m venv venv `
-4. Install required packages: `pip install -r requirements.txt`
-5. If need to run main.py before running any notebooks: `python -m spacy download en_core_web_sm`
+4. Activate the virtual environment: `source venv/bin/activate`
+5. Install required packages: `pip install -r requirements.txt`
+6. If need to run main.py before running any notebooks: `python -m spacy download en_core_web_sm`
 
 ## Project structure (explained)
 
